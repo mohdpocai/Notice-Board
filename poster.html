@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Poster – Polisi Leepang 2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  @page{size:A4;margin:0}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#ddd}
+  .bar{max-width:210mm;margin:12px auto;display:flex;gap:8px;align-items:center;font-size:13px}
+  .bar input{flex:1;padding:8px;border:1px solid #aaa;border-radius:6px}
+  .bar button{padding:8px 14px;border:0;border-radius:6px;background:#1f5d3a;color:#fff;cursor:pointer}
+  .page{width:210mm;height:297mm;margin:0 auto 20px;background:#fff;display:flex;flex-direction:column;align-items:center;text-align:center;padding:18mm 16mm;border:6mm solid #1f5d3a}
+  .estate{font-size:14pt;letter-spacing:.15em;text-transform:uppercase;color:#1f5d3a;font-weight:700}
+  h1{font-size:30pt;margin:6mm 0 2mm;line-height:1.15;color:#1d2420}
+  .en{font-size:16pt;color:#555;margin-bottom:10mm}
+  #qr{padding:6mm;border:1.5mm solid #1d2420;border-radius:4mm}
+  #qr img,#qr canvas{display:block;width:110mm!important;height:110mm!important}
+  .scan{font-size:22pt;font-weight:800;margin-top:9mm;color:#1f5d3a}
+  .scan-en{font-size:14pt;color:#555;margin-top:1mm}
+  .cats{display:flex;gap:5mm;margin-top:10mm}
+  .cats div{padding:3mm 6mm;border-radius:3mm;color:#fff;font-weight:700;font-size:13pt}
+  .url{margin-top:auto;font-size:10pt;color:#777;word-break:break-all}
+  @media print{ body{background:#fff} .bar{display:none} .page{margin:0} }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span>Link:</span><input id="url">
+  <button onclick="makeQR()">Kemaskini QR</button>
+  <button onclick="window.print()">Cetak / Print</button>
+</div>
+
+<div class="page">
+  <div class="estate">Leepang 2 Estate</div>
+  <h1>Polisi, Garis Panduan<br>&amp; Kod Etika</h1>
+  <div class="en">Policy, Guideline &amp; Code of Conduct</div>
+  <div id="qr"></div>
+  <div class="scan">IMBAS UNTUK BACA</div>
+  <div class="scan-en">Scan with your phone camera to read</div>
+  <div class="scan-en">I-scan gamit ang camera ng telepono para mabasa</div>
+  <div class="scan-en" style="margin-top:4mm;font-size:12pt">Bahasa Melayu · English · Tagalog</div>
+  <div class="cats">
+    <div style="background:#1f5d3a">Polisi</div>
+    <div style="background:#1d5fa8">Garis Panduan</div>
+    <div style="background:#a8541d">Kod Etika</div>
+  </div>
+  <div class="url" id="urlText"></div>
+</div>
+
+<script>
+// Default: the index page in the same folder as this poster (works on GitHub Pages automatically)
+const input = document.getElementById("url");
+input.value = location.href.replace(/poster\.html.*$/,"");
+function makeQR(){
+  const box = document.getElementById("qr");
+  box.innerHTML = "";
+  new QRCode(box,{text:input.value.trim(),width:600,height:600,correctLevel:QRCode.CorrectLevel.H});
+  document.getElementById("urlText").textContent = input.value.trim();
+}
+makeQR();
+</script>
+</body>
+</html>

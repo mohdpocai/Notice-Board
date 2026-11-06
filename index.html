@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polisi, Garis Panduan & Kod Etika – Leepang 2 Estate</title>
+<style>
+  :root{
+    --green:#1f5d3a; --bg:#f4f6f3; --card:#fff;
+    --text:#1d2420; --muted:#66706a; --line:#e2e6e1;
+    --pol:#1f5d3a; --gp:#1d5fa8; --kod:#a8541d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  header{background:var(--green);color:#fff;padding:14px 18px 18px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .estate{font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.8}
+  .lang{display:flex;background:rgba(255,255,255,.15);border-radius:999px;padding:3px}
+  .lang button{border:0;background:none;color:#fff;font-weight:700;font-size:13px;padding:6px 11px;border-radius:999px;cursor:pointer}
+  .lang button.active{background:#fff;color:var(--green)}
+  header h1{margin:12px 0 0;font-size:21px;line-height:1.25}
+  main{max-width:720px;margin:0 auto;padding:14px 14px 40px}
+  .search{width:100%;padding:12px 14px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .tabs{display:flex;gap:8px;margin:12px 0 4px;overflow-x:auto;padding-bottom:4px}
+  .tab{flex:0 0 auto;border:1px solid var(--line);background:#fff;color:var(--text);padding:8px 14px;border-radius:999px;font-size:14px;cursor:pointer}
+  .tab.active{background:var(--green);border-color:var(--green);color:#fff}
+  h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 4px 8px}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden}
+  .doc{display:flex;align-items:center;gap:12px;padding:14px;cursor:pointer;width:100%;border:0;background:none;text-align:left;font:inherit;color:inherit}
+  .doc:active{background:#eef3ee}
+  .badge{flex:0 0 44px;height:44px;border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px}
+  .b-pol{background:var(--pol)} .b-gp{background:var(--gp)} .b-kod{background:var(--kod)}
+  .info{flex:1;min-width:0}
+  .title{font-weight:600;font-size:15px;line-height:1.3}
+  .meta{font-size:12px;color:var(--muted);margin-top:3px}
+  .arrow{color:var(--muted);font-size:20px;transition:transform .2s}
+  .item.open .arrow{transform:rotate(90deg)}
+  .detail{display:none;padding:0 14px 14px 70px}
+  .item.open .detail{display:block}
+  .detail ul{margin:0 0 12px;padding-left:18px;font-size:14px;line-height:1.5}
+  .detail li{margin-bottom:4px}
+  .nosum{font-size:13px;color:var(--muted);margin:0 0 12px}
+  .open-btn{display:inline-block;background:var(--green);color:#fff;text-decoration:none;padding:9px 14px;border-radius:8px;font-size:14px;font-weight:600}
+  .empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px}
+  footer{text-align:center;font-size:12px;color:var(--muted);margin-top:28px;line-height:1.6}
+  @media (max-width:420px){ .detail{padding-left:14px} }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="estate">Leepang 2 Estate</div>
+    <div class="lang" id="lang"></div>
+  </div>
+  <h1 id="h1"></h1>
+</header>
+
+<main>
+  <input class="search" id="q" type="search" autocomplete="off">
+  <div class="tabs" id="tabs"></div>
+  <div id="list"></div>
+  <footer><span id="hint"></span><br><span id="upd"></span>: <span id="updated"></span></footer>
+</main>
+
+<script>
+/* =====================================================================
+   SETTING — paste your Google Sheet "Publish to web" CSV link here.
+   (File → Share → Publish to web → choose the sheet → CSV → Publish)
+   After this, manage documents ONLY in the Google Sheet:
+     add a row = new document, edit a cell = change,
+     delete the row (or set Papar = TIDAK) = remove.
+   Sheet columns (row 1, keep this order):
+     Kategori | Tajuk BM | Title EN | Pamagat TL | Ringkasan BM |
+     Summary EN | Buod TL | Tarikh | Link | Papar | Link BM
+   - Link BM (optional): Malay version PDF, opened when BM is chosen
+   - Kategori: POL / GP / KOD
+   - Ringkasan / Summary / Buod: one point per line (Alt+Enter in the
+     cell; on phone, new line in the cell) or separate points with |
+   - Papar: YA = show, TIDAK = hide (blank = show)
+   ===================================================================== */
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1ZZm-Px4CDciSalW-MkFaYwax7FxTLH-j3U_YgHlBkLE/pub?output=csv";
+/* ===================================================================== */
+
+let DOCS = [];
+let LAST_UPDATED = "";
+
+// CSV parser that handles quotes, commas and new lines inside cells
+function parseCSV(text){
+  const rows=[]; let row=[], cell="", q=false;
+  text = text.replace(/^\uFEFF/,"");
+  for (let i=0;i<text.length;i++){
+    const ch=text[i];
+    if (q){
+      if (ch=='"'){ if (text[i+1]=='"'){cell+='"';i++;} else q=false; }
+      else cell+=ch;
+    } else if (ch=='"') q=true;
+    else if (ch==','){ row.push(cell); cell=""; }
+    else if (ch=='\n' || ch=='\r'){
+      if (ch=='\r' && text[i+1]=='\n') i++;
+      row.push(cell); rows.push(row); row=[]; cell="";
+    } else cell+=ch;
+  }
+  if (cell!=="" || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+const points = v => String(v||"").split(/\n|\|/).map(x=>x.trim()).filter(Boolean);
+
+function toDocs(rows){
+  return rows.slice(1).filter(r=>r.some(c=>c.trim())).map(r=>({
+    cat:(r[0]||"").trim().toUpperCase(),
+    title:{ ms:(r[1]||"").trim(), en:(r[2]||"").trim(), tl:(r[3]||"").trim() },
+    summary:{ ms:points(r[4]), en:points(r[5]), tl:points(r[6]) },
+    date:(r[7]||"").trim(), link:(r[8]||"").trim(),
+    show:!/^(tidak|no|n|hide)$/i.test((r[9]||"").trim()),
+    linkBM:(r[10]||"").trim(),
+  })).filter(d=>d.show && CLS[d.cat] && (d.title.ms||d.title.en||d.title.tl));
+}
+
+async function loadDocs(){
+  // show the last saved copy first (works with weak signal / offline)
+  try {
+    const c = JSON.parse(localStorage.getItem("polisi-cache")||"null");
+    if (c){ DOCS=c.docs; LAST_UPDATED=c.time; draw(); }
+  } catch(e){}
+  try {
+    const res = await fetch(SHEET_CSV_URL + (SHEET_CSV_URL.includes("?")?"&":"?") + "t=" + Date.now());
+    if (!res.ok) throw new Error(res.status);
+    DOCS = toDocs(parseCSV(await res.text()));
+    LAST_UPDATED = new Date().toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+    try { localStorage.setItem("polisi-cache", JSON.stringify({docs:DOCS,time:LAST_UPDATED})); } catch(e){}
+    loadError = false;
+  } catch(e){
+    loadError = !DOCS.length;
+  }
+  loading = false;
+  draw();
+}
+let loading = true, loadError = false;
+
+const T = {
+  ms:{ label:"BM", h1:"Polisi, Garis Panduan & Kod Etika", search:"Cari dokumen…", all:"Semua",
+       eff:"Berkuat kuasa", nosum:"Ringkasan belum ada.", open:"Buka dokumen penuh",
+       empty:"Tiada dokumen dijumpai.", hint:"Sentuh dokumen untuk lihat ringkasan.", upd:"Dikemaskini", loading:"Memuatkan…", err:"Tidak dapat memuatkan senarai. Sila semak internet.",
+       cat:{POL:"Polisi", GP:"Garis Panduan", KOD:"Kod Etika"} },
+  en:{ label:"EN", h1:"Policy, Guideline & Code of Conduct", search:"Search documents…", all:"All",
+       eff:"Effective", nosum:"Summary not available yet.", open:"Open full document",
+       empty:"No documents found.", hint:"Tap a document to see its summary.", upd:"Updated", loading:"Loading…", err:"Could not load the list. Please check your internet.",
+       cat:{POL:"Policy", GP:"Guideline", KOD:"Code of Conduct"} },
+  tl:{ label:"TL", h1:"Patakaran, Alituntunin at Kodigo ng Asal", search:"Maghanap ng dokumento…", all:"Lahat",
+       eff:"Epektibo", nosum:"Wala pang buod.", open:"Buksan ang buong dokumento",
+       empty:"Walang nahanap na dokumento.", hint:"Pindutin ang dokumento para makita ang buod.", upd:"Na-update", loading:"Naglo-load…", err:"Hindi ma-load ang listahan. Pakisuri ang internet.",
+       cat:{POL:"Patakaran", GP:"Alituntunin", KOD:"Kodigo ng Asal"} },
+};
+const CLS = {POL:"b-pol", GP:"b-gp", KOD:"b-kod"};
+
+let lang = "ms";
+try { const s = localStorage.getItem("polisi-lang"); if (T[s]) lang = s; } catch(e){}
+let current = "ALL";
+
+// pick text in chosen language, fall back to BM then EN
+function pick(v){
+  if (v == null) return "";
+  if (typeof v === "string" || Array.isArray(v)) return v;
+  const ok = x => Array.isArray(x) ? x.length : x;
+  return ok(v[lang]) ? v[lang] : ok(v.ms) ? v.ms : ok(v.en) ? v.en : (v.tl || "");
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function setLang(l){
+  lang = l;
+  try { localStorage.setItem("polisi-lang", l); } catch(e){}
+  document.documentElement.lang = l === "tl" ? "tl" : l;
+  draw();
+}
+
+function draw(){
+  const t = T[lang];
+  document.getElementById("lang").innerHTML = Object.entries(T).map(([k,v])=>
+    `<button class="${k===lang?"active":""}" onclick="setLang('${k}')">${v.label}</button>`).join("");
+  document.getElementById("h1").textContent = t.h1;
+  document.title = t.h1 + " – Leepang 2 Estate";
+  document.getElementById("q").placeholder = t.search;
+  document.getElementById("hint").textContent = t.hint;
+  document.getElementById("upd").textContent = t.upd;
+  document.getElementById("updated").textContent = LAST_UPDATED;
+  buildTabs(); render();
+}
+
+function buildTabs(){
+  const t = T[lang], tabs = document.getElementById("tabs");
+  const items = [["ALL", t.all], ...Object.keys(CLS).map(k=>[k, t.cat[k]])];
+  tabs.innerHTML = "";
+  items.forEach(([k,label])=>{
+    const b = document.createElement("button");
+    b.className = "tab" + (k===current ? " active" : "");
+    b.textContent = label;
+    b.onclick = ()=>{ current = k; buildTabs(); render(); };
+    tabs.appendChild(b);
+  });
+}
+
+function render(){
+  const t = T[lang];
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  let html = "", count = 0;
+  Object.keys(CLS).forEach(k=>{
+    if (current!=="ALL" && current!==k) return;
+    const docs = DOCS.filter(d=>{
+      if (d.cat!==k) return false;
+      if (!q) return true;
+      // search all languages so any word works
+      const all = JSON.stringify([d.title, d.summary]).toLowerCase();
+      return all.includes(q);
+    });
+    if (!docs.length) return;
+    html += `<h2>${esc(t.cat[k])}</h2>`;
+    docs.forEach(d=>{
+      count++;
+      const pts = (pick(d.summary)||[]).filter(Boolean);
+      html += `<div class="item">
+        <button class="doc" onclick="this.parentElement.classList.toggle('open')">
+          <div class="badge ${CLS[k]}">${k}</div>
+          <div class="info"><div class="title">${esc(pick(d.title))}</div>
+          ${d.date ? `<div class="meta">${t.eff}: ${esc(d.date)}</div>` : ""}</div>
+          <div class="arrow">›</div>
+        </button>
+        <div class="detail">
+          ${pts.length ? `<ul>${pts.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>` : `<p class="nosum">${t.nosum}</p>`}
+          <a class="open-btn" href="${esc((lang==='ms' && d.linkBM) || d.link)}" target="_blank" rel="noopener">📄 ${t.open}</a>
+        </div></div>`;
+    });
+  });
+  document.getElementById("list").innerHTML = count ? html :
+    `<div class="empty">${loading ? t.loading : loadError ? t.err : t.empty}</div>`;
+}
+
+document.getElementById("q").addEventListener("input", render);
+setLang(lang);
+loadDocs();
+</script>
+</body>
+</html>
